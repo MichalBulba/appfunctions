@@ -12,12 +12,20 @@ deterministic input, and test functions using an LLM-based agent.
 ## Building and Running
 
 To build, install, and launch the app with elevated privileges (required for some AppFunctions APIs),
-use the `run_privileged.sh` script.
+use `run_privileged.sh` on macOS/Linux or `run_privileged.ps1` on Windows.
 
 ### Usage
 
+#### macOS/Linux
+
 ```bash
 ./run_privileged.sh [OPTIONS]
+```
+
+#### Windows PowerShell
+
+```powershell
+.\run_privileged.ps1 [OPTIONS]
 ```
 
 ### Options
@@ -28,6 +36,11 @@ use the `run_privileged.sh` script.
 -   `-k, --api-key KEY`: The Gemini API key (required for `retail` builds if not set elsewhere).
 -   `-h, --help`: Show the help message.
 
+On Windows, use the PowerShell parameter names `-Build`, `-Release`, `-Flavor`,
+`-ApiKey`, `-Serial`, and `-Help`.
+If the PowerShell execution policy blocks the script, run it with
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_privileged.ps1 -Build`.
+
 ### Examples
 
 **Standard Debug Build**
@@ -35,9 +48,19 @@ use the `run_privileged.sh` script.
 ./run_privileged.sh --build
 ```
 
+**Standard Debug Build on Windows**
+```powershell
+.\run_privileged.ps1 -Build
+```
+
 **Retail Debug Build with API Key**
 ```bash
 ./run_privileged.sh --build --flavor retail --api-key YOUR_API_KEY
+```
+
+**Retail Debug Build on Windows**
+```powershell
+.\run_privileged.ps1 -Build -Flavor retail -ApiKey YOUR_API_KEY
 ```
 
 ## Testing
