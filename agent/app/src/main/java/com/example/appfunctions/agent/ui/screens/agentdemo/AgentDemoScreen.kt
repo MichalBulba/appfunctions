@@ -108,6 +108,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -128,6 +129,7 @@ import com.example.appfunctions.agent.data.db.entities.MessageRole
 import com.example.appfunctions.agent.data.db.entities.ThreadEntity
 import com.example.appfunctions.agent.domain.AgentStatus
 import com.example.appfunctions.agent.domain.appfunction.AppInfo
+import com.example.appfunctions.agent.ui.theme.AppFunctionsAgentTheme
 import com.example.appfunctions.agent.ui.screens.debugging.LazyExposedDropdownMenu
 import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.CoroutineScope
@@ -1047,5 +1049,43 @@ fun formatMessageText(
         if (lastIndex < text.length) {
             append(text.substring(lastIndex))
         }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AgentDemoScreenPreview() {
+    AppFunctionsAgentTheme {
+        AgentDemoContent(
+            uiState =
+                AgentUiState.Loaded(
+                    currentThread =
+                        ThreadEntity(
+                            threadId = "preview-thread",
+                            createdAt = 0L,
+                            llmModel = LlmModel.DEFAULT,
+                        ),
+                    messages =
+                        listOf(
+                            MessageEntity(
+                                messageId = "preview-user-message",
+                                threadId = "preview-thread",
+                                role = MessageRole.USER,
+                                textContent = "What can you help me with?",
+                                timestamp = 0L,
+                                processingStatus = MessageProcessingStatus.PROCESSED,
+                            ),
+                            MessageEntity(
+                                messageId = "preview-assistant-message",
+                                threadId = "preview-thread",
+                                role = MessageRole.ASSISTANT,
+                                textContent = "I can help you use your apps.",
+                                timestamp = 1L,
+                                processingStatus = MessageProcessingStatus.PROCESSED,
+                            ),
+                        ),
+                ),
+            onEvent = {},
+        )
     }
 }
