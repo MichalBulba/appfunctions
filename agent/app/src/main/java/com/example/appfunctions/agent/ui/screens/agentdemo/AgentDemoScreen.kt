@@ -260,6 +260,7 @@ fun AgentDemoLoadedScreen(
     var isSidePanelVisible by remember { mutableStateOf(initialSidePanelVisible) }
     var selectedAppPackageName by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     var autoReadEnabled by rememberSaveable { mutableStateOf(true) }
+    var autoSendDictationEnabled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val reportVoiceError: (Int) -> Unit = { resourceId ->
@@ -287,6 +288,14 @@ fun AgentDemoLoadedScreen(
             selectedAppPackageName = null
         }
     }
+    val sendDraft: (TextFieldValue) -> Unit = { draft ->
+        if (draft.text.isNotBlank() && uiState.status == AgentStatus.Idle) {
+            onEvent(AgentUiEvent.OnSendMessage(draft.text, selectedAppPackageName))
+            messageText = TextFieldValue("")
+            selectedAppPackageName = null
+        }
+    }
+    val sendMessage = { sendDraft(messageText) }
     val isPreview = LocalInspectionMode.current
     val dictation =
         if (isPreview) {
@@ -296,7 +305,14 @@ fun AgentDemoLoadedScreen(
                 threadId = threadId,
                 draft = messageText,
                 enabled = uiState.status == AgentStatus.Idle,
-                onDraftChanged = updateMessageText,
+                onDraftChanged = { draft ->
+                    completeDictation(
+                        draft = draft,
+                        autoSend = autoSendDictationEnabled,
+                        onDraftChanged = updateMessageText,
+                        onSend = sendDraft,
+                    )
+                },
                 onStart = speech.stop,
                 onError = reportVoiceError,
             )
@@ -390,19 +406,41 @@ fun AgentDemoLoadedScreen(
                     modifier =
                         Modifier
                             .padding(vertical = 8.dp)
-                            .fillMaxWidth()
-                            .toggleable(
-                                value = autoReadEnabled,
-                                role = Role.Checkbox,
-                                onValueChange = { autoReadEnabled = it },
-                            ),
+                            .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Checkbox(checked = autoReadEnabled, onCheckedChange = null)
-                    Text(
-                        text = stringResource(R.string.agent_demo_auto_read),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Row(
+                        modifier =
+                            Modifier.weight(1f)
+                                .toggleable(
+                                    value = autoReadEnabled,
+                                    role = Role.Checkbox,
+                                    onValueChange = { autoReadEnabled = it },
+                                ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = autoReadEnabled, onCheckedChange = null)
+                        Text(
+                            text = stringResource(R.string.agent_demo_auto_read),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Row(
+                        modifier =
+                            Modifier.weight(1f)
+                                .toggleable(
+                                    value = autoSendDictationEnabled,
+                                    role = Role.Checkbox,
+                                    onValueChange = { autoSendDictationEnabled = it },
+                                ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = autoSendDictationEnabled, onCheckedChange = null)
+                        Text(
+                            text = stringResource(R.string.agent_demo_auto_send_dictation),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
                 // Messages List
                 LazyColumn(
@@ -436,15 +474,6 @@ fun AgentDemoLoadedScreen(
                             onConfirmAction = { onEvent(AgentUiEvent.OnConfirmAction(it)) },
                             onReadAloud = { speech.read(message) },
                         )
-                    }
-                }
-
-                val sendMessage = {
-                    val textStr = messageText.text
-                    if (textStr.isNotBlank() && uiState.status == AgentStatus.Idle) {
-                        onEvent(AgentUiEvent.OnSendMessage(textStr, selectedAppPackageName))
-                        messageText = TextFieldValue("")
-                        selectedAppPackageName = null
                     }
                 }
 

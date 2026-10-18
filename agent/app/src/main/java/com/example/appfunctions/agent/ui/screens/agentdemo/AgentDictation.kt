@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 BlbM
+ * Copyright 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,6 +113,18 @@ internal fun rememberAgentDictation(
             }
         },
     )
+}
+
+internal fun completeDictation(
+    draft: TextFieldValue,
+    autoSend: Boolean,
+    onDraftChanged: (TextFieldValue) -> Unit,
+    onSend: (TextFieldValue) -> Unit,
+) {
+    onDraftChanged(draft)
+    if (autoSend && draft.text.isNotBlank()) {
+        onSend(draft)
+    }
 }
 
 internal fun handleDictationResult(

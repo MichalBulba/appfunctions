@@ -67,7 +67,10 @@ If the PowerShell execution policy blocks the script, run it with
 
 Tap the microphone next to the message field to open Android's speech recognition
 dialog. The recognized text replaces the current selection or is inserted at the
-cursor; tap Send when ready. Canceling leaves the draft unchanged.
+cursor; tap Send when ready. Enable **Voice auto-send** next to **Auto-read** to
+send the complete resulting draft immediately after successful dictation. This is
+off by default and survives screen recreation. Canceling or failed recognition
+never sends a message and leaves the draft unchanged.
 
 New assistant replies are read aloud automatically while the chat is open, using
 the device language. Stop cancels the current reading and queued speech; subsequent

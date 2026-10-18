@@ -104,7 +104,8 @@
     <string name="agent_demo_send">Send</string>
     <string name="agent_demo_dictate">Dictate message</string>
     <string name="agent_demo_stop_speech">Stop reading aloud</string>
-    <string name="agent_demo_auto_read">Read new replies aloud automatically</string>
+    <string name="agent_demo_auto_read">Auto-read</string>
+    <string name="agent_demo_auto_send_dictation">Voice auto-send</string>
     <string name="agent_demo_message_actions">Message actions</string>
     <string name="agent_demo_read_aloud">Read aloud</string>
     <string name="agent_demo_select_text">Select text</string>

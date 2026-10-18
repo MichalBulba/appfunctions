@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 BlbM
+ * Copyright 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,50 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AgentDictationTest {
+    @Test
+    fun `auto send submits resulting draft after updating input`() {
+        val draft = TextFieldValue("@Notes dictated message", TextRange(24))
+        val actions = mutableListOf<Pair<String, TextFieldValue>>()
+
+        completeDictation(
+            draft,
+            autoSend = true,
+            onDraftChanged = { actions += "update" to it },
+            onSend = { actions += "send" to it },
+        )
+
+        assertEquals(listOf("update" to draft, "send" to draft), actions)
+    }
+
+    @Test
+    fun `auto send disabled only updates draft`() {
+        val draft = TextFieldValue("Dictated message")
+        val actions = mutableListOf<String>()
+
+        completeDictation(
+            draft,
+            autoSend = false,
+            onDraftChanged = { actions += "update" },
+            onSend = { actions += "send" },
+        )
+
+        assertEquals(listOf("update"), actions)
+    }
+
+    @Test
+    fun `blank draft is never sent automatically`() {
+        val actions = mutableListOf<String>()
+
+        completeDictation(
+            TextFieldValue(" "),
+            autoSend = true,
+            onDraftChanged = { actions += "update" },
+            onSend = { actions += "send" },
+        )
+
+        assertEquals(listOf("update"), actions)
+    }
+
     @Test
     fun `inserts at cursor and preserves surrounding text`() {
         val draft = TextFieldValue("@Notes  please", TextRange(7))
