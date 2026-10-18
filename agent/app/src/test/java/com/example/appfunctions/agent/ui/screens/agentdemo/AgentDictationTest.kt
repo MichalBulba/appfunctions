@@ -23,6 +23,100 @@ import org.junit.Test
 
 class AgentDictationTest {
     @Test
+    fun `cursor insertion never sends automatically even when auto send is enabled`() {
+        val original = TextFieldValue("Existing text", TextRange(9))
+        val inserted =
+            requireNotNull(
+                insertDictation("thread", original, "thread", original, "dictated ", insertAtCursor = true),
+            )
+        val actions = mutableListOf<Pair<String, TextFieldValue>>()
+
+        completeDictation(
+            inserted,
+            autoSend = true,
+            onDraftChanged = { actions += "update" to it },
+            onSend = { actions += "send" to it },
+            insertAtCursor = true,
+        )
+
+        assertEquals(listOf("update" to inserted), actions)
+        assertEquals("Existing dictated text", inserted.text)
+    }
+
+    @Test
+    fun `focused dictation into empty input also waits for manual send`() {
+        val draft = TextFieldValue("Dictated text")
+        val actions = mutableListOf<String>()
+
+        completeDictation(
+            draft,
+            autoSend = true,
+            onDraftChanged = { actions += "update" },
+            onSend = { actions += "send" },
+            insertAtCursor = true,
+        )
+
+        assertEquals(listOf("update"), actions)
+    }
+
+    @Test
+    fun `unfocused dictation replaces entire draft regardless of cursor`() {
+        val draft = TextFieldValue("Previous message", TextRange(4, 8))
+
+        val result =
+            insertDictation(
+                "thread",
+                draft,
+                "thread",
+                draft,
+                "New message",
+                insertAtCursor = false,
+            )
+
+        assertEquals(TextFieldValue("New message", TextRange(11)), result)
+    }
+
+    @Test
+    fun `unfocused dictation does not overwrite a changed draft`() {
+        val draft = TextFieldValue("Previous message")
+
+        assertNull(
+            insertDictation(
+                "thread",
+                draft,
+                "thread",
+                TextFieldValue("Edited"),
+                "New message",
+                insertAtCursor = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `auto send sends replacement instead of previous unfocused draft`() {
+        val draft = TextFieldValue("Previous message", TextRange(3))
+        val replacement =
+            insertDictation(
+                "thread",
+                draft,
+                "thread",
+                draft,
+                "New message",
+                insertAtCursor = false,
+            )!!
+        val sent = mutableListOf<String>()
+
+        completeDictation(
+            replacement,
+            autoSend = true,
+            onDraftChanged = {},
+            onSend = { sent += it.text },
+        )
+
+        assertEquals(listOf("New message"), sent)
+    }
+
+    @Test
     fun `auto send submits resulting draft after updating input`() {
         val draft = TextFieldValue("@Notes dictated message", TextRange(24))
         val actions = mutableListOf<Pair<String, TextFieldValue>>()

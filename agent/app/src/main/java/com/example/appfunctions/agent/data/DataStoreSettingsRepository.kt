@@ -17,6 +17,7 @@ package com.example.appfunctions.agent.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -34,11 +35,29 @@ class DataStoreSettingsRepository
     ) : SettingsRepository {
         // TODO: Make sure the API keys are not leaked in the I/O event.
         private object PreferencesKeys {
+            val AUTO_READ = booleanPreferencesKey("auto_read")
+            val AUTO_SEND_DICTATION = booleanPreferencesKey("auto_send_dictation")
             val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
             val SELECTED_PROVIDER = stringPreferencesKey("selected_provider")
             val SERVICE_TIER = stringPreferencesKey("service_tier")
             val PINNED_APPS = stringSetPreferencesKey("pinned_apps")
             val DISCONNECTED_APPS = stringSetPreferencesKey("disconnected_apps")
+        }
+
+        override val voiceSettings: Flow<VoiceSettings> =
+            dataStore.data.map { preferences ->
+                VoiceSettings(
+                    autoReadEnabled = preferences[PreferencesKeys.AUTO_READ] ?: true,
+                    autoSendDictationEnabled = preferences[PreferencesKeys.AUTO_SEND_DICTATION] ?: false,
+                )
+            }
+
+        override suspend fun setAutoReadEnabled(enabled: Boolean) {
+            dataStore.edit { it[PreferencesKeys.AUTO_READ] = enabled }
+        }
+
+        override suspend fun setAutoSendDictationEnabled(enabled: Boolean) {
+            dataStore.edit { it[PreferencesKeys.AUTO_SEND_DICTATION] = enabled }
         }
 
         override val geminiApiKey: Flow<String?> =

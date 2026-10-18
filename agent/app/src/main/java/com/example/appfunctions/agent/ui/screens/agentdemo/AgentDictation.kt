@@ -44,9 +44,10 @@ internal fun rememberAgentDictation(
     threadId: String,
     draft: TextFieldValue,
     enabled: Boolean,
-    onDraftChanged: (TextFieldValue) -> Unit,
+    onDraftChanged: (TextFieldValue, Boolean) -> Unit,
     onStart: () -> Unit,
     onError: (Int) -> Unit,
+    isInputFocused: Boolean = true,
 ): AgentDictationControls {
     val currentThreadId by rememberUpdatedState(threadId)
     val currentDraft by rememberUpdatedState(draft)
@@ -54,6 +55,7 @@ internal fun rememberAgentDictation(
     val currentOnDraftChanged by rememberUpdatedState(onDraftChanged)
     val currentOnError by rememberUpdatedState(onError)
     var requestThreadId by rememberSaveable { mutableStateOf<String?>(null) }
+    var requestInputFocused by rememberSaveable { mutableStateOf(true) }
     var requestDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
     }
@@ -77,7 +79,10 @@ internal fun rememberAgentDictation(
                             currentThreadId = currentThreadId,
                             currentDraft = currentDraft,
                             recognizedText = recognized,
-                        )?.let(currentOnDraftChanged)
+                            insertAtCursor = requestInputFocused,
+                        )?.let { draft ->
+                            currentOnDraftChanged(draft, requestInputFocused)
+                        }
                     },
                     onError = currentOnError,
                 )
@@ -91,6 +96,7 @@ internal fun rememberAgentDictation(
                 onStart()
                 requestThreadId = threadId
                 requestDraft = draft
+                requestInputFocused = isInputFocused
                 val intent =
                     Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                         .putExtra(
@@ -120,9 +126,10 @@ internal fun completeDictation(
     autoSend: Boolean,
     onDraftChanged: (TextFieldValue) -> Unit,
     onSend: (TextFieldValue) -> Unit,
+    insertAtCursor: Boolean = false,
 ) {
     onDraftChanged(draft)
-    if (autoSend && draft.text.isNotBlank()) {
+    if (autoSend && !insertAtCursor && draft.text.isNotBlank()) {
         onSend(draft)
     }
 }
@@ -156,12 +163,13 @@ internal fun insertDictation(
     currentThreadId: String,
     currentDraft: TextFieldValue,
     recognizedText: String,
+    insertAtCursor: Boolean = true,
 ): TextFieldValue? {
     if (requestThreadId != currentThreadId || requestDraft != currentDraft) {
         return null
     }
-    val start = currentDraft.selection.min
-    val end = currentDraft.selection.max
+    val start = if (insertAtCursor) currentDraft.selection.min else 0
+    val end = if (insertAtCursor) currentDraft.selection.max else currentDraft.text.length
     val text = currentDraft.text.replaceRange(start, end, recognizedText)
     return TextFieldValue(text, selection = TextRange(start + recognizedText.length))
 }

@@ -18,10 +18,22 @@ package com.example.appfunctions.agent.ui.screens.agentdemo
 import com.example.appfunctions.agent.data.LlmProviderName
 import com.example.appfunctions.agent.data.ServiceTier
 import com.example.appfunctions.agent.data.SettingsRepository
+import com.example.appfunctions.agent.data.VoiceSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeSettingsRepository : SettingsRepository {
+    private val _voiceSettings = MutableStateFlow(VoiceSettings())
+    override val voiceSettings: Flow<VoiceSettings> = _voiceSettings
+
+    override suspend fun setAutoReadEnabled(enabled: Boolean) {
+        _voiceSettings.value = _voiceSettings.value.copy(autoReadEnabled = enabled)
+    }
+
+    override suspend fun setAutoSendDictationEnabled(enabled: Boolean) {
+        _voiceSettings.value = _voiceSettings.value.copy(autoSendDictationEnabled = enabled)
+    }
+
     private val _geminiApiKey = MutableStateFlow<String?>(null)
     override val geminiApiKey: Flow<String?> = _geminiApiKey
 

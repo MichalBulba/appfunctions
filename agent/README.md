@@ -66,17 +66,21 @@ If the PowerShell execution policy blocks the script, run it with
 ## Voice in Agent Demo
 
 Tap the microphone next to the message field to open Android's speech recognition
-dialog. The recognized text replaces the current selection or is inserted at the
-cursor; tap Send when ready. Enable **Voice auto-send** next to **Auto-read** to
-send the complete resulting draft immediately after successful dictation. This is
-off by default and survives screen recreation. Canceling or failed recognition
+dialog. If the message field had focus when the microphone was tapped, the result
+replaces the selection or is inserted at the cursor. Otherwise it replaces the
+entire draft. Tap Send when ready. Enable **Voice auto-send** next to **Auto-read** to
+send the resulting draft immediately after successful dictation in replacement
+mode (when the field did not have focus). In cursor-insertion mode, dictation only
+updates the draft and always waits for a manual Send, even with Voice auto-send
+enabled. This setting is
+off by default. Both checkbox settings are saved on the device and restored after
+restarting the app. Canceling or failed recognition
 never sends a message and leaves the draft unchanged.
 
 New assistant replies are read aloud automatically while the chat is open, using
 the device language. Stop cancels the current reading and queued speech; subsequent
 new replies are still read aloud. The checkbox above the messages enables or
-disables automatic reading; disabling it also stops playback. Its state survives
-screen recreation, but is not a persistent app setting. Re-enabling it does not
+disables automatic reading; disabling it also stops playback. Re-enabling it does not
 read replies received while it was disabled.
 
 Long-press a message bubble to open its actions: Read aloud, Copy, or Select text

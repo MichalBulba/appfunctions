@@ -16,6 +16,7 @@
 package com.example.appfunctions.agent.ui.screens.agentdemo
 
 import com.example.appfunctions.agent.data.LlmModel
+import com.example.appfunctions.agent.data.VoiceSettings
 import com.example.appfunctions.agent.data.db.entities.MessageEntity
 import com.example.appfunctions.agent.data.db.entities.ThreadEntity
 import com.example.appfunctions.agent.domain.AgentStatus
@@ -33,11 +34,16 @@ sealed class AgentUiState {
         val activePendingActionIds: Set<String> = emptySet(),
         val installedApps: List<AppInfo> = emptyList(),
         val isHistoryLoaded: Boolean = false,
+        val voiceSettings: VoiceSettings = VoiceSettings(),
     ) : AgentUiState()
 }
 
 /** Represents UI events for the Agent Demo screen. */
 sealed class AgentUiEvent {
+    data class OnAutoReadChanged(val enabled: Boolean) : AgentUiEvent()
+
+    data class OnAutoSendDictationChanged(val enabled: Boolean) : AgentUiEvent()
+
     data class OnSendMessage(
         val text: String,
         val targetPackageName: String? = null,

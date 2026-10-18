@@ -118,7 +118,11 @@ class AgentDemoViewModel
                     ->
                     ThreadConfig(threads, provider, status, targetThreadId, apps)
                 }
-                    .collectLatest { (threads, provider, status, targetThreadId, apps) ->
+                    .combine(settingsRepository.voiceSettings) { config, voiceSettings ->
+                        config to voiceSettings
+                    }
+                    .collectLatest { (config, voiceSettings) ->
+                        val (threads, provider, status, targetThreadId, apps) = config
                         val currentThread =
                             threads.find { it.threadId == targetThreadId } ?: threads.firstOrNull()
 
@@ -148,6 +152,7 @@ class AgentDemoViewModel
                                     installedApps = apps,
                                     isHistoryLoaded =
                                         sameThread && currentLoadedState?.isHistoryLoaded == true,
+                                    voiceSettings = voiceSettings,
                                 )
 
                             // Start observing messages for the current thread if not already doing so
@@ -186,6 +191,14 @@ class AgentDemoViewModel
         fun onEvent(event: AgentUiEvent) {
             val currentState = _uiState.value
             when (event) {
+                is AgentUiEvent.OnAutoReadChanged -> {
+                    viewModelScope.launch { settingsRepository.setAutoReadEnabled(event.enabled) }
+                }
+                is AgentUiEvent.OnAutoSendDictationChanged -> {
+                    viewModelScope.launch {
+                        settingsRepository.setAutoSendDictationEnabled(event.enabled)
+                    }
+                }
                 is AgentUiEvent.OnSendMessage -> {
                     if (currentState is AgentUiState.Loaded) {
                         viewModelScope.launch {

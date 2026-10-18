@@ -96,6 +96,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.Key
@@ -275,8 +276,9 @@ fun AgentDemoLoadedScreen(
     }
     var isSidePanelVisible by remember { mutableStateOf(initialSidePanelVisible) }
     var selectedAppPackageName by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
-    var autoReadEnabled by rememberSaveable { mutableStateOf(true) }
-    var autoSendDictationEnabled by rememberSaveable { mutableStateOf(false) }
+    val autoReadEnabled = uiState.voiceSettings.autoReadEnabled
+    val autoSendDictationEnabled = uiState.voiceSettings.autoSendDictationEnabled
+    var isInputFocused by remember(threadId) { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val reportVoiceError: (Int) -> Unit = { resourceId ->
@@ -319,14 +321,16 @@ fun AgentDemoLoadedScreen(
         } else {
             rememberAgentDictation(
                 threadId = threadId,
+                isInputFocused = isInputFocused,
                 draft = messageText,
                 enabled = uiState.status == AgentStatus.Idle,
-                onDraftChanged = { draft ->
+                onDraftChanged = { draft, insertAtCursor ->
                     completeDictation(
                         draft = draft,
                         autoSend = autoSendDictationEnabled,
                         onDraftChanged = updateMessageText,
                         onSend = sendDraft,
+                        insertAtCursor = insertAtCursor,
                     )
                 },
                 onStart = speech.stop,
@@ -431,7 +435,7 @@ fun AgentDemoLoadedScreen(
                                 .toggleable(
                                     value = autoReadEnabled,
                                     role = Role.Checkbox,
-                                    onValueChange = { autoReadEnabled = it },
+                                    onValueChange = { onEvent(AgentUiEvent.OnAutoReadChanged(it)) },
                                 ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -447,7 +451,9 @@ fun AgentDemoLoadedScreen(
                                 .toggleable(
                                     value = autoSendDictationEnabled,
                                     role = Role.Checkbox,
-                                    onValueChange = { autoSendDictationEnabled = it },
+                                    onValueChange = {
+                                        onEvent(AgentUiEvent.OnAutoSendDictationChanged(it))
+                                    },
                                 ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -543,6 +549,7 @@ fun AgentDemoLoadedScreen(
                         onValueChange = updateMessageText,
                         modifier =
                             Modifier
+                                .onFocusChanged { isInputFocused = it.isFocused }
                                 .fillMaxWidth()
                                 .padding(vertical = 16.dp)
                                 .onPreviewKeyEvent { keyEvent ->

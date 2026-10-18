@@ -19,6 +19,12 @@ import kotlinx.coroutines.flow.Flow
 
 /** Repository to manage user settings like API keys and provider selection. */
 interface SettingsRepository {
+    val voiceSettings: Flow<VoiceSettings>
+
+    suspend fun setAutoReadEnabled(enabled: Boolean)
+
+    suspend fun setAutoSendDictationEnabled(enabled: Boolean)
+
     /** Flow of the Gemini API key. */
     val geminiApiKey: Flow<String?>
 
@@ -55,3 +61,8 @@ interface SettingsRepository {
         connected: Boolean,
     )
 }
+
+data class VoiceSettings(
+    val autoReadEnabled: Boolean = true,
+    val autoSendDictationEnabled: Boolean = false,
+)

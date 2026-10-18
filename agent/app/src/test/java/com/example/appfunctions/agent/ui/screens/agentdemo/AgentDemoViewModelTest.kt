@@ -20,6 +20,7 @@ import com.example.appfunctions.agent.MainActivity
 import com.example.appfunctions.agent.data.LlmModel
 import com.example.appfunctions.agent.data.LlmProviderName
 import com.example.appfunctions.agent.data.SettingsRepository
+import com.example.appfunctions.agent.data.VoiceSettings
 import com.example.appfunctions.agent.data.db.entities.MessageEntity
 import com.example.appfunctions.agent.data.db.entities.MessageProcessingStatus
 import com.example.appfunctions.agent.data.db.entities.MessageRole
@@ -74,6 +75,7 @@ class AgentDemoViewModelTest {
 
     private val threadsFlow = MutableStateFlow<List<ThreadEntity>>(emptyList())
     private val selectedProviderFlow = MutableStateFlow<LlmProviderName>(LlmProviderName.GEMINI)
+    private val voiceSettingsFlow = MutableStateFlow(VoiceSettings())
     private val agentStatusFlow = MutableStateFlow<AgentStatus>(AgentStatus.Idle)
     private val messagesFlow = MutableStateFlow<List<MessageEntity>>(emptyList())
     private val activePendingActionIdsFlow = MutableStateFlow<Set<String>>(emptySet())
@@ -99,6 +101,7 @@ class AgentDemoViewModelTest {
 
         every { manageThreadsUseCase.getThreads() } returns threadsFlow
         every { settingsRepository.selectedProvider } returns selectedProviderFlow
+        every { settingsRepository.voiceSettings } returns voiceSettingsFlow
         every { agentOrchestrator.status } returns agentStatusFlow
         every { getChatHistoryUseCase(any()) } returns messagesFlow
         every { observeActivePendingIntentsUseCase() } returns activePendingActionIdsFlow
@@ -310,6 +313,7 @@ class AgentDemoViewModelTest {
                 )
             firstHistory.emit(listOf(message))
             threadsFlow.value = listOf(firstThread, secondThread)
+            voiceSettingsFlow.value = VoiceSettings(false, true)
             every { getChatHistoryUseCase("first") } returns firstHistory
             every { getChatHistoryUseCase("second") } returns secondHistory
 
@@ -331,6 +335,20 @@ class AgentDemoViewModelTest {
             val firstState = viewModel.uiState.value as AgentUiState.Loaded
             assertTrue(firstState.isHistoryLoaded)
             assertEquals(listOf(message), firstState.messages)
+            assertEquals(VoiceSettings(false, true), firstState.voiceSettings)
+
+            coEvery { settingsRepository.setAutoReadEnabled(true) } coAnswers {
+                voiceSettingsFlow.value = voiceSettingsFlow.value.copy(autoReadEnabled = true)
+            }
+            coEvery { settingsRepository.setAutoSendDictationEnabled(false) } coAnswers {
+                voiceSettingsFlow.value = voiceSettingsFlow.value.copy(autoSendDictationEnabled = false)
+            }
+            viewModel.onEvent(AgentUiEvent.OnAutoReadChanged(true))
+            viewModel.onEvent(AgentUiEvent.OnAutoSendDictationChanged(false))
+            coVerify { settingsRepository.setAutoReadEnabled(true) }
+            coVerify { settingsRepository.setAutoSendDictationEnabled(false) }
+            assertEquals(VoiceSettings(true, false), (viewModel.uiState.value as AgentUiState.Loaded).voiceSettings)
+            assertEquals(listOf(message), (viewModel.uiState.value as AgentUiState.Loaded).messages)
 
             agentStatusFlow.value = AgentStatus.Thinking
             assertTrue((viewModel.uiState.value as AgentUiState.Loaded).isHistoryLoaded)
@@ -341,6 +359,7 @@ class AgentDemoViewModelTest {
             assertEquals(secondThread, switchingState.currentThread)
             assertTrue(switchingState.messages.isEmpty())
             assertFalse(switchingState.isHistoryLoaded)
+            assertEquals(VoiceSettings(true, false), switchingState.voiceSettings)
 
             secondHistory.emit(emptyList())
 
