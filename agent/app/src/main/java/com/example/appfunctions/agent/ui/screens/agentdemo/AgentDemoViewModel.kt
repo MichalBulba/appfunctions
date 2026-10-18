@@ -131,15 +131,23 @@ class AgentDemoViewModel
                             _uiState.value = AgentUiState.Loading
                         } else {
                             val currentLoadedState = _uiState.value as? AgentUiState.Loaded
+                            val sameThread = previousThreadId == currentThread.threadId
                             _uiState.value =
                                 AgentUiState.Loaded(
                                     currentThread = currentThread,
-                                    messages = currentLoadedState?.messages ?: emptyList(),
+                                    messages =
+                                        if (sameThread) {
+                                            currentLoadedState?.messages ?: emptyList()
+                                        } else {
+                                            emptyList()
+                                        },
                                     status = status,
                                     threads = threads,
                                     activePendingActionIds =
                                         currentLoadedState?.activePendingActionIds ?: emptySet(),
                                     installedApps = apps,
+                                    isHistoryLoaded =
+                                        sameThread && currentLoadedState?.isHistoryLoaded == true,
                                 )
 
                             // Start observing messages for the current thread if not already doing so
@@ -151,9 +159,15 @@ class AgentDemoViewModel
                                             getChatHistoryUseCase(currentThread.threadId).collect {
                                                     messages ->
                                                 val currentState = _uiState.value
-                                                if (currentState is AgentUiState.Loaded) {
+                                                if (
+                                                    currentState is AgentUiState.Loaded &&
+                                                    currentState.currentThread.threadId == currentThread.threadId
+                                                ) {
                                                     _uiState.value =
-                                                        currentState.copy(messages = messages)
+                                                        currentState.copy(
+                                                            messages = messages,
+                                                            isHistoryLoaded = true,
+                                                        )
                                                 }
                                             }
                                         }

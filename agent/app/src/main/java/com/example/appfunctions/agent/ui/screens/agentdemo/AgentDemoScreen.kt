@@ -15,6 +15,7 @@
  */
 package com.example.appfunctions.agent.ui.screens.agentdemo
 
+import android.content.ClipData
 import android.content.pm.PackageManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
@@ -23,6 +24,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,23 +41,31 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -68,8 +78,11 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +90,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,11 +103,15 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -129,8 +147,8 @@ import com.example.appfunctions.agent.data.db.entities.MessageRole
 import com.example.appfunctions.agent.data.db.entities.ThreadEntity
 import com.example.appfunctions.agent.domain.AgentStatus
 import com.example.appfunctions.agent.domain.appfunction.AppInfo
-import com.example.appfunctions.agent.ui.theme.AppFunctionsAgentTheme
 import com.example.appfunctions.agent.ui.screens.debugging.LazyExposedDropdownMenu
+import com.example.appfunctions.agent.ui.theme.AppFunctionsAgentTheme
 import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -139,7 +157,11 @@ import kotlinx.coroutines.launch
 fun AgentDemoScreen(viewModel: AgentDemoViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    AgentDemoContent(uiState = uiState, onEvent = viewModel::onEvent)
+    AgentDemoContent(
+        uiState = uiState,
+        onEvent = viewModel::onEvent,
+        latestUiState = { viewModel.uiState.value },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -148,6 +170,7 @@ fun AgentDemoContent(
     uiState: AgentUiState,
     onEvent: (AgentUiEvent) -> Unit,
     initialSidePanelVisible: Boolean = false,
+    latestUiState: () -> AgentUiState = { uiState },
 ) {
     val context = LocalContext.current
     val packageManager = context.packageManager
@@ -177,6 +200,7 @@ fun AgentDemoContent(
                         scope = scope,
                         packageManager = packageManager,
                         initialSidePanelVisible = initialSidePanelVisible,
+                        latestUiState = latestUiState,
                     )
                 }
             }
@@ -227,10 +251,56 @@ fun AgentDemoLoadedScreen(
     scope: CoroutineScope,
     packageManager: PackageManager,
     initialSidePanelVisible: Boolean = false,
+    latestUiState: () -> AgentUiState = { uiState },
 ) {
-    var messageText by remember { mutableStateOf(TextFieldValue("")) }
+    val threadId = uiState.currentThread.threadId
+    var messageText by rememberSaveable(threadId, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
     var isSidePanelVisible by remember { mutableStateOf(initialSidePanelVisible) }
-    var selectedAppPackageName by remember { mutableStateOf<String?>(null) }
+    var selectedAppPackageName by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
+    var autoReadEnabled by rememberSaveable { mutableStateOf(true) }
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val reportVoiceError: (Int) -> Unit = { resourceId ->
+        scope.launch { snackbarHostState.showSnackbar(context.getString(resourceId)) }
+    }
+    val speech =
+        rememberAgentSpeech(
+            uiState,
+            onError = reportVoiceError,
+            latestUiState = latestUiState,
+            autoReadEnabled = autoReadEnabled,
+        )
+    val updateMessageText: (TextFieldValue) -> Unit = { newValue ->
+        messageText = newValue
+        val selectedApp =
+            uiState.installedApps.find { it.packageName == selectedAppPackageName }
+        if (
+            selectedAppPackageName != null &&
+            (
+                selectedApp == null ||
+                    !Regex("@${Regex.escape(selectedApp.label)}\\b", RegexOption.IGNORE_CASE)
+                        .containsMatchIn(newValue.text)
+            )
+        ) {
+            selectedAppPackageName = null
+        }
+    }
+    val isPreview = LocalInspectionMode.current
+    val dictation =
+        if (isPreview) {
+            AgentDictationControls(isListening = false, start = {})
+        } else {
+            rememberAgentDictation(
+                threadId = threadId,
+                draft = messageText,
+                enabled = uiState.status == AgentStatus.Idle,
+                onDraftChanged = updateMessageText,
+                onStart = speech.stop,
+                onError = reportVoiceError,
+            )
+        }
 
     val chipBgColor = MaterialTheme.colorScheme.primaryContainer
     val chipTextColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -242,9 +312,10 @@ fun AgentDemoLoadedScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Unspecified,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ModelDropdown(
@@ -262,6 +333,15 @@ fun AgentDemoLoadedScreen(
                         }
                     },
                 )
+                if (speech.isSpeaking) {
+                    IconButton(onClick = speech.stop) {
+                        Icon(
+                            imageVector = Icons.Default.Stop,
+                            contentDescription =
+                                stringResource(R.string.agent_demo_stop_speech),
+                        )
+                    }
+                }
                 IconButton(
                     onClick = {
                         onEvent(AgentUiEvent.OnCreateThread(uiState.currentThread.llmModel))
@@ -306,6 +386,24 @@ fun AgentDemoLoadedScreen(
                         .padding(start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .padding(vertical = 8.dp)
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = autoReadEnabled,
+                                role = Role.Checkbox,
+                                onValueChange = { autoReadEnabled = it },
+                            ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = autoReadEnabled, onCheckedChange = null)
+                    Text(
+                        text = stringResource(R.string.agent_demo_auto_read),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 // Messages List
                 LazyColumn(
                     modifier =
@@ -336,6 +434,7 @@ fun AgentDemoLoadedScreen(
                                 message.pendingIntentId in uiState.activePendingActionIds,
                             installedApps = uiState.installedApps,
                             onConfirmAction = { onEvent(AgentUiEvent.OnConfirmAction(it)) },
+                            onReadAloud = { speech.read(message) },
                         )
                     }
                 }
@@ -391,30 +490,11 @@ fun AgentDemoLoadedScreen(
                         }
                     }
 
-                val appMentionRegex =
-                    remember(uiState.installedApps) {
-                        if (uiState.installedApps.isNotEmpty()) {
-                            val appLabelsPattern =
-                                uiState.installedApps.joinToString("|") { Regex.escape(it.label) }
-                            Regex("@($appLabelsPattern)\\b", RegexOption.IGNORE_CASE)
-                        } else {
-                            null
-                        }
-                    }
-
                 // Input area
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = messageText,
-                        onValueChange = { newValue ->
-                            messageText = newValue
-                            val currentText = newValue.text
-                            if (selectedAppPackageName != null && appMentionRegex != null) {
-                                if (!appMentionRegex.containsMatchIn(currentText)) {
-                                    selectedAppPackageName = null
-                                }
-                            }
-                        },
+                        onValueChange = updateMessageText,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -441,6 +521,21 @@ fun AgentDemoLoadedScreen(
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedBorderColor = Color.Transparent,
                             ),
+                        leadingIcon = {
+                            IconButton(
+                                onClick = dictation.start,
+                                enabled =
+                                    !isPreview &&
+                                        !dictation.isListening &&
+                                        uiState.status == AgentStatus.Idle,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription =
+                                        stringResource(R.string.agent_demo_dictate),
+                                )
+                            }
+                        },
                         trailingIcon = {
                             IconButton(
                                 onClick = sendMessage,
@@ -536,7 +631,7 @@ fun ModelDropdown(
         onExpandedChange = { expanded = !expanded },
     ) {
         Surface(
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier,
             shadowElevation = 2.dp,
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceBright,
@@ -635,7 +730,23 @@ fun MessageBubble(
     isValidAction: Boolean,
     installedApps: List<AppInfo>,
     onConfirmAction: (String) -> Unit,
+    onReadAloud: () -> Unit,
 ) {
+    var showMessageMenu by remember(message.messageId) { mutableStateOf(false) }
+    var showSelectableText by remember(message.messageId) { mutableStateOf(false) }
+    val clipboard = LocalClipboard.current
+    val menuScope = rememberCoroutineScope()
+    val confirmationText = stringResource(R.string.agent_demo_action_confirmation_needed)
+    val contentText =
+        if (message.textContent.isEmpty() && message.pendingIntentId != null) {
+            confirmationText
+        } else {
+            message.textContent
+        }
+    val canReadAloud =
+        remember(message, confirmationText) {
+            agentSpeechTextFor(message, confirmationText) != null
+        }
     val alignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start
     val isError = message.processingStatus == MessageProcessingStatus.FAILED
     val backgroundColor =
@@ -651,6 +762,26 @@ fun MessageBubble(
             else -> MaterialTheme.colorScheme.onSurface
         }
 
+    if (showSelectableText) {
+        AlertDialog(
+            onDismissRequest = { showSelectableText = false },
+            title = { Text(stringResource(R.string.agent_demo_select_text)) },
+            text = {
+                SelectionContainer {
+                    Text(
+                        text = contentText,
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSelectableText = false }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
+    }
+
     Column(
         modifier =
             Modifier
@@ -659,12 +790,51 @@ fun MessageBubble(
         horizontalAlignment = alignment,
     ) {
         Surface(
+            modifier =
+                Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClickLabel = stringResource(R.string.agent_demo_message_actions),
+                    onLongClick = { showMessageMenu = true },
+                ),
             shape = MaterialTheme.shapes.large,
             color = backgroundColor,
             shadowElevation = if (message.role == MessageRole.ASSISTANT) 1.dp else 0.dp,
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                SelectionContainer {
+                Box {
+                    DropdownMenu(
+                        expanded = showMessageMenu,
+                        onDismissRequest = { showMessageMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.agent_demo_read_aloud)) },
+                            enabled = canReadAloud,
+                            onClick = {
+                                showMessageMenu = false
+                                onReadAloud()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(android.R.string.copy)) },
+                            enabled = contentText.isNotBlank(),
+                            onClick = {
+                                showMessageMenu = false
+                                menuScope.launch {
+                                    clipboard.setClipEntry(
+                                        ClipEntry(ClipData.newPlainText("Message", contentText)),
+                                    )
+                                }
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.agent_demo_select_text)) },
+                            enabled = contentText.isNotBlank(),
+                            onClick = {
+                                showMessageMenu = false
+                                showSelectableText = true
+                            },
+                        )
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isError) {
                             Icon(
@@ -674,16 +844,6 @@ fun MessageBubble(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        val contentText =
-                            if (
-                                message.textContent.isEmpty() &&
-                                message.pendingIntentId != null
-                            ) {
-                                stringResource(R.string.agent_demo_action_confirmation_needed)
-                            } else {
-                                message.textContent
-                            }
-
                         if (message.role != MessageRole.USER) {
                             if (contentText.isNotEmpty()) {
                                 Markdown(content = contentText)

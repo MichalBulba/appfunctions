@@ -63,6 +63,30 @@ If the PowerShell execution policy blocks the script, run it with
 .\run_privileged.ps1 -Build -Flavor retail -ApiKey YOUR_API_KEY
 ```
 
+## Voice in Agent Demo
+
+Tap the microphone next to the message field to open Android's speech recognition
+dialog. The recognized text replaces the current selection or is inserted at the
+cursor; tap Send when ready. Canceling leaves the draft unchanged.
+
+New assistant replies are read aloud automatically while the chat is open, using
+the device language. Stop cancels the current reading and queued speech; subsequent
+new replies are still read aloud. The checkbox above the messages enables or
+disables automatic reading; disabling it also stops playback. Its state survives
+screen recreation, but is not a persistent app setting. Re-enabling it does not
+read replies received while it was disabled.
+
+Long-press a message bubble to open its actions: Read aloud, Copy, or Select text
+for copying part of the message. Manual reading works even with automatic reading
+disabled and replaces current and queued speech. Image-only messages cannot be read.
+Opening the microphone, changing conversations,
+or leaving/backgrounding the chat stops playback. Loaded chat history is not read.
+
+The device must have a speech recognition app and a text-to-speech engine with
+voice data for the device language. Some emulator images do not include these
+services. Processing may use the network depending on the selected system provider;
+offline operation is not guaranteed. No additional Gemini API is used for voice.
+
 ## Testing
 
 Always run relevant tests to verify your changes before committing.

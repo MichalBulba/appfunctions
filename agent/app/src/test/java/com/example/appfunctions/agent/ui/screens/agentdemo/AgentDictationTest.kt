@@ -1,0 +1,77 @@
+/*
+ * Copyright 2026 BlbM
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.example.appfunctions.agent.ui.screens.agentdemo
+
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class AgentDictationTest {
+    @Test
+    fun `inserts at cursor and preserves surrounding text`() {
+        val draft = TextFieldValue("@Notes  please", TextRange(7))
+
+        val result = insertDictation("thread", draft, "thread", draft, "hello")
+
+        assertEquals(TextFieldValue("@Notes hello please", TextRange(12)), result)
+    }
+
+    @Test
+    fun `replaces reversed selection and moves cursor after recognized text`() {
+        val draft = TextFieldValue("old message!", TextRange(11, 0))
+
+        val result = insertDictation("thread", draft, "thread", draft, "new message")
+
+        assertEquals(TextFieldValue("new message!", TextRange(11)), result)
+    }
+
+    @Test
+    fun `inserts into empty draft`() {
+        val draft = TextFieldValue()
+
+        assertEquals(
+            TextFieldValue("Hello", TextRange(5)),
+            insertDictation("thread", draft, "thread", draft, "Hello"),
+        )
+    }
+
+    @Test
+    fun `ignores result from another conversation`() {
+        val draft = TextFieldValue("draft")
+
+        assertNull(insertDictation("old", draft, "new", draft, "Hello"))
+    }
+
+    @Test
+    fun `ignores result if draft changed while recognition was open`() {
+        val draft = TextFieldValue("draft")
+
+        assertNull(
+            insertDictation("thread", draft, "thread", TextFieldValue("edited draft"), "Hello"),
+        )
+    }
+
+    @Test
+    fun `ignores result if cursor changed while recognition was open`() {
+        val draft = TextFieldValue("draft", TextRange(0))
+
+        assertNull(
+            insertDictation("thread", draft, "thread", draft.copy(selection = TextRange(5)), "Hello"),
+        )
+    }
+}

@@ -16,6 +16,7 @@
 package com.example.appfunctions.agent.ui.screens.agentdemo
 
 import androidx.lifecycle.SavedStateHandle
+import com.example.appfunctions.agent.MainActivity
 import com.example.appfunctions.agent.data.LlmModel
 import com.example.appfunctions.agent.data.LlmProviderName
 import com.example.appfunctions.agent.data.SettingsRepository
@@ -39,6 +40,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -47,6 +49,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -286,6 +290,62 @@ class AgentDemoViewModelTest {
             messagesFlow.value = listOf(message)
 
             assertEquals(listOf(message), (viewModel.uiState.value as AgentUiState.Loaded).messages)
+        }
+
+    @Test
+    fun `thread switch clears old messages until new history arrives`() =
+        runTest {
+            val firstThread = ThreadEntity("first", 0L, LlmModel.DEFAULT)
+            val secondThread = ThreadEntity("second", 1L, LlmModel.DEFAULT)
+            val firstHistory = MutableSharedFlow<List<MessageEntity>>(replay = 1)
+            val secondHistory = MutableSharedFlow<List<MessageEntity>>(replay = 1)
+            val message =
+                MessageEntity(
+                    "old-message",
+                    "first",
+                    MessageRole.ASSISTANT,
+                    "Old reply",
+                    0L,
+                    MessageProcessingStatus.PROCESSED,
+                )
+            firstHistory.emit(listOf(message))
+            threadsFlow.value = listOf(firstThread, secondThread)
+            every { getChatHistoryUseCase("first") } returns firstHistory
+            every { getChatHistoryUseCase("second") } returns secondHistory
+
+            viewModel =
+                AgentDemoViewModel(
+                    savedStateHandle,
+                    getChatHistoryUseCase,
+                    manageThreadsUseCase,
+                    sendMessageUseCase,
+                    agentOrchestrator,
+                    settingsRepository,
+                    observeActivePendingIntentsUseCase,
+                    launchPendingIntentUseCase,
+                    consumePendingIntentUseCase,
+                    getInstalledAppsUseCase,
+                    getAppFunctionsUseCase,
+                )
+
+            val firstState = viewModel.uiState.value as AgentUiState.Loaded
+            assertTrue(firstState.isHistoryLoaded)
+            assertEquals(listOf(message), firstState.messages)
+
+            agentStatusFlow.value = AgentStatus.Thinking
+            assertTrue((viewModel.uiState.value as AgentUiState.Loaded).isHistoryLoaded)
+
+            savedStateHandle[MainActivity.ARG_THREAD_ID] = "second"
+
+            val switchingState = viewModel.uiState.value as AgentUiState.Loaded
+            assertEquals(secondThread, switchingState.currentThread)
+            assertTrue(switchingState.messages.isEmpty())
+            assertFalse(switchingState.isHistoryLoaded)
+
+            secondHistory.emit(emptyList())
+
+            assertTrue((viewModel.uiState.value as AgentUiState.Loaded).isHistoryLoaded)
+            assertTrue((viewModel.uiState.value as AgentUiState.Loaded).messages.isEmpty())
         }
 
     @Test
