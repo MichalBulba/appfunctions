@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -254,6 +255,21 @@ fun AgentDemoLoadedScreen(
     latestUiState: () -> AgentUiState = { uiState },
 ) {
     val threadId = uiState.currentThread.threadId
+    val messagesListState = rememberLazyListState()
+    val hasAgentStatus = uiState.status != AgentStatus.Idle
+
+    LaunchedEffect(
+        threadId,
+        uiState.isHistoryLoaded,
+        uiState.messages.size,
+        uiState.messages.lastOrNull()?.messageId,
+        hasAgentStatus,
+    ) {
+        if (uiState.isHistoryLoaded && (uiState.messages.isNotEmpty() || hasAgentStatus)) {
+            messagesListState.animateScrollToItem(0)
+        }
+    }
+
     var messageText by rememberSaveable(threadId, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(""))
     }
@@ -444,6 +460,7 @@ fun AgentDemoLoadedScreen(
                 }
                 // Messages List
                 LazyColumn(
+                    state = messagesListState,
                     modifier =
                         Modifier
                             .weight(1f)
